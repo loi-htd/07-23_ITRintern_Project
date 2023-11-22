@@ -69,3 +69,5 @@
 - [Loi Ho]: Firmware Development
 - [Huy Le]: Firmware Development
 
+### Reference
+Ahola TM. Pedometer for running activity using accelerometer sensors on the wrist. Medical Equipment Insights 2010; (3): 1–8

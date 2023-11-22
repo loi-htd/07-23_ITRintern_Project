@@ -51,7 +51,7 @@ display_manager_status_t display_manager_init()
   return DISPLAY_MANAGER_OK;
 }
 
-void display_manager(uint8_t scan_case, uint8_t *card_id, uint16_t *step, ds1307_time_t *rtc_time)
+void display_main_function(uint8_t scan_case, uint8_t *card_id, uint16_t *step, ds1307_time_t *rtc_time)
 {
   switch (scan_case)
   {

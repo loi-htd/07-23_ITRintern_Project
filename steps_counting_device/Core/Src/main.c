@@ -20,8 +20,7 @@
 #include "main.h"
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-#include "backup_manager.h"
-#include "display_manager.h"
+#include "system_manager.h"
 
 /* USER CODE END Includes */
 
@@ -32,10 +31,7 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
-#define BACKUP_FLAG 0x0800C010
-#define BACKUP_DATA 0x0800C012
-#define TURN_ON 1
-#define TURN_OFF 0
+
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -54,10 +50,9 @@ TIM_HandleTypeDef htim1;
 
 /* USER CODE BEGIN PV */
 ds1307_time_t time;
-mpu6050_t mpu6050;
 uint16_t step = 0;
 uint8_t delay_flag = TURN_ON;
-uint8_t id_receive[BSP_MFRC522_MAX_LEN] = { 0 };
+uint8_t card_id[BSP_MFRC522_MAX_LEN] = { 0 };
 uint8_t pre_card_id[BSP_MFRC522_MAX_LEN] = { 0 };
 
 /* USER CODE END PV */
@@ -113,41 +108,8 @@ int main(void)
   MX_SPI1_Init();
   MX_TIM1_Init();
   /* USER CODE BEGIN 2 */
-  /* Init library */
-  if (display_manager_init() != DISPLAY_MANAGER_OK)
-  {
-    Error_Handler();
-  }
-  mpu6050_init(&mpu6050, MPU6050_PWR_MNG_INTERNAL, MPU6050_SAMPLERATE_1KHZ, MPU6050_ACCELEROMETER_8G,
-               MPU6050_GYROSCOPE_1000S);
-
-  /* Check backup status
-   * Time config mode: set time for RTC
-   * Backup mode: set scan flag, get user ID from FLASH, display backup screen
-   */
-  if (backup_check_status((uint32_t) BACKUP_FLAG, (uint32_t) BACKUP_DATA, id_receive) == TIME_CONFIG_MODE)
-  {
-    time.hour = 18;
-    time.minute = 30;
-    time.second = 0;
-    time.am_pm = DS1307_PM;
-    time.format = DS1307_FORMAT_24H;
-    time.day = THURSDAY;
-    time.date = 7;
-    time.month = 9;
-    time.year = 23;
-    ds1307_set_time(time);
-  }
-  else if (backup_check_status((uint32_t) BACKUP_FLAG, (uint32_t) BACKUP_DATA, id_receive) == BACKUP_MODE)
-  {
-    user_set_flag();
-    delay_flag = TURN_OFF;
-    for (uint8_t i = 1; i < 5; i++)  // store user ID
-      pre_card_id[i] = id_receive[i];
-    display_backup_screen();
-    bsp_delay_tim_ms(2000);
-  }
-
+  system_init();
+  system_check_backup(time, card_id, pre_card_id, &delay_flag);
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -157,45 +119,7 @@ int main(void)
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
-    // Check card scanning status
-    switch (user_check_scanning_time(id_receive, pre_card_id))
-    {
-    case ZERO_SCAN:                                          // Have not been scanned
-    {
-      display_manager(ZERO_SCAN, id_receive, &step, &time);  // Default screen
-      break;
-    }
-    case FIRST_SCAN:  // First time Card detected -> start walking
-    {
-      display_manager(FIRST_SCAN, pre_card_id, &step, &time);
-
-      /* Avoid detecting card continuous and backup user ID */
-      if (delay_flag == TURN_ON)
-      {
-        backup_user_data((uint32_t) BACKUP_FLAG, (uint32_t) BACKUP_DATA, pre_card_id);
-        bsp_delay_tim_ms(1500);
-      }
-      delay_flag = TURN_OFF;  // Turn of delay flag for next cycles
-
-      /* Get sensor data */
-      mpu6050_read_accel(&mpu6050);
-      mpu6050_read_gyro(&mpu6050);
-
-      /* Execute step counting algorithm*/
-      step_start_walking(&step, mpu6050);
-      break;
-    }
-    case SECOND_SCAN:                                          // Second time Card detected -> finish walking
-    {
-      backup_reset((uint32_t) BACKUP_FLAG);                    // Clear backup data
-
-      display_manager(SECOND_SCAN, id_receive, &step, &time);  // Display finish screen
-      user_clear_flag();                                       // Clear FSM flag to default (0)
-      step = 0;                                                // Reset numbers of step
-      delay_flag = TURN_ON;  // Turn on delay flag for First time Card detected
-      break;
-    }
-    }
+    system_main_function(&step, &time, card_id, pre_card_id, *delay_flag);
   }
   /* USER CODE END 3 */
 }

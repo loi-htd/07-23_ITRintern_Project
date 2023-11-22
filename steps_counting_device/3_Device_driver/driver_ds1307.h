@@ -1,5 +1,5 @@
 /**
- * @file       ds1307.h
+ * @file       driver_ds1307.h
  * @copyright
  * @license
  * @version    1.0.0
